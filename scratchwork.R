@@ -1,5 +1,6 @@
 require(data.table)
-
+require(xts)
+require(caret)
 ## download data
 testFile <- ".\\data\\test.csv"
 trainFile <- ".\\data\\training.csv"
@@ -25,8 +26,28 @@ if(!file.exists(testFile)) {
   downloadTestData()
 }
 
-test <- fread(testFile)
-train <- fread(trainFile)
+testSet <- fread(testFile)
+test <- testSet[,-1, with=FALSE]
+test$cvtd_timestamp <- as.POSIXct(test$cvtd_timestamp)
+
+trainSet <- fread(trainFile)
+train <- trainSet[,-1,with=FALSE]
+classe <- trainSet[,160,with=FALSE]
+classe <- unlist(classe)
+classe <- factor(classe)
+train$cvtd_timestamp <- as.POSIXct(train$cvtd_timestamp)
+
+#as.xts requires the date column to be first.
+#the last column of train is "classe" and the last column of test is "problem_id" 
+timestampName <- "cvtd_timestamp"
+currentCnames <- colnames(test)
+ixDate <- match(timestampName, currentCnames)
+desiredCnams <- c(timestampName, currentCnames[1:ixDate -1], currentCnames[ixDate + 1 : (length(currentCnames) - ixDate)])
+
+setcolorder(test, desiredCnams)
+setcolorder(train, desiredCnams)
+
+test_ts <- as.xts(test)
 
 ## TODO build validation set
 
@@ -46,6 +67,8 @@ complete <- train[, cnams, with = FALSE]
 
 #running time is too high: 
 #mod <- train(classe ~ ., data = complete,  method = "glm") 
+mod <- train(x = train, y = classe, method ="rpart")
+
 
 ## ok, so the easy "just predict by all copmlete vectors" is not working 
 ## partly because I don't have the RAM and partly because there is 
@@ -92,5 +115,5 @@ fancyRpartPlot(m1$finalModel)
 
 
 
-
+vecvecvec <- sapply(colnames(train), function(x) { xyColor("gyros_arm_x", x)})
 
