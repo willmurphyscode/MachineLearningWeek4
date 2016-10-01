@@ -26,9 +26,14 @@ if(!file.exists(testFile)) {
   downloadTestData()
 }
 
+source("makeModels.R")
+
 testSet <- fread(testFile)
 test <- testSet[,-1, with=FALSE]
 test$cvtd_timestamp <- as.POSIXct(test$cvtd_timestamp)
+
+
+
 
 trainSet <- fread(trainFile)
 train <- trainSet[,-1,with=FALSE]
@@ -36,6 +41,9 @@ classe <- trainSet[,160,with=FALSE]
 classe <- unlist(classe)
 classe <- factor(classe)
 train$cvtd_timestamp <- as.POSIXct(train$cvtd_timestamp)
+
+trainMods <- buildModels(train)
+testMods <- buildModels(test)
 
 #as.xts requires the date column to be first.
 #the last column of train is "classe" and the last column of test is "problem_id" 
@@ -47,7 +55,7 @@ desiredCnams <- c(timestampName, currentCnames[1:ixDate -1], currentCnames[ixDat
 setcolorder(test, desiredCnams)
 setcolorder(train, desiredCnams)
 
-test_ts <- as.xts(test)
+test_ts <- xts::xts(test)
 
 ## TODO build validation set
 
