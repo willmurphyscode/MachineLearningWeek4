@@ -1,46 +1,39 @@
 require(data.table)
 require(xts)
 require(caret)
-## download data
-testFile <- ".\\data\\test.csv"
-trainFile <- ".\\data\\training.csv"
+require(lubridate)
 
-setwd("D:\\Projects\\MachineLearningWeek4")
+#setwd("D:\\Projects\\MachineLearningWeek4")
+setwd("C:\\Users\\william.murphy\\MachineLearningWeek4")
 
-downloadTrainingData <- function (){ 
-  url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-  download.file(url, trainFile)
-}
-
-downloadTestData <- function () {
-  url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
-  
-  download.file(url, testFile)
-}
-
-if(!file.exists(trainFile)) {
-  downloadTrainingData()
-}
-
-if(!file.exists(testFile)) {
-  downloadTestData()
-}
-
-source("makeModels.R")
-
-testSet <- fread(testFile)
-test <- testSet[,-1, with=FALSE]
-test$cvtd_timestamp <- as.POSIXct(test$cvtd_timestamp)
-
-
-
+source(".\\downloadData.R")
 
 trainSet <- fread(trainFile)
-train <- trainSet[,-1,with=FALSE]
+trainData <- trainSet[,-1,with=FALSE]
+trainData$classe = factor(trainData$classe)
 classe <- trainSet[,160,with=FALSE]
 classe <- unlist(classe)
 classe <- factor(classe)
-train$cvtd_timestamp <- as.POSIXct(train$cvtd_timestamp)
+trainData$cvtd_timestamp <- as.POSIXct(trainData$cvtd_timestamp)
+
+ixNaCols <- which(apply(trainData, 2, function(x){ any(is.na(x)) | any(x == "") }))
+
+noNas <- trainData[,-ixNaCols, with=FALSE]
+
+#ixNaCols2 <- which(apply(noNas, 2, function(x){ any(is.na(x)) }))
+
+myTimeControl <- trainControl(method = "timeslice",
+                              initialWindow = 75,
+                              horizon = 25,
+                              fixedWindow = TRUE)
+
+
+attempt <- train(classe ~ .,
+                    data = noNas[1:2000,],
+                    method = "rf",
+                    trControl = myTimeControl)
+
+
 
 trainMods <- buildModels(train)
 testMods <- buildModels(test)

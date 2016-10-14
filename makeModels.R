@@ -1,7 +1,15 @@
-countSwitches <- function(vec) {
-  if(!is.numeric(vec)) {
+countSwitches <- function(v) {
+#   if(!is.numeric(vec)) {
+#     print(class(vec))
+#     return(NA)
+#   }
+  
+  vec <- as.numeric(v)
+  
+  if(any(is.na(vec))) {
     return(NA)
   }
+  
   offsetVec <- c(0, vec)
   otherVec <- c(vec, 0)
   deltas <- offsetVec - otherVec
@@ -10,8 +18,8 @@ countSwitches <- function(vec) {
 
   on <- signs[1]
   
-  print(deltas)
-  print(signs)
+#   print(deltas)
+#   print(signs)
   
   switches <- 0
   for(i in 1:(length(deltas) - 1)) {
@@ -35,39 +43,42 @@ countSwitches <- function(vec) {
 
 
 buildWindowVector <-function (dt, startRowIx, endRowIx) {
-  print(class(dt))
-  print(startRowIx)
-  source <- dt[startRowIx : endRowIx]
+
+  source <- dt[startRowIx : endRowIx,]
+  classe <- dt[startRowIx : endRowIx, "classe"]
+  if(any(classe != classe[0])) {
+    stop("error, window crosses outcomes")
+  }
 
   mins <- apply(source, 2, function(x) {
       if(is.numeric(x)) {
         min(x)
-        } 
-    else {
-      NA}
+      } 
+      
+      else {
+        min(as.numeric(x))
+        }
     })
   maxes <- apply(source, 2, function(x) {
     if(is.numeric(x)) {
       max(x)
     } 
     else {
-      NA}
+      max(as.numeric(x))
+      }
   })
   switches <- apply(source, 2, countSwitches)
   
-  c(mins,maxes,switches)
+  c(mins,maxes,switches, classe[0])
 }
 
 buildModels <- function(dt) {
-  windowVec <- dt$new_window == "yes"
-
-  ixesWindowChanges <- which(dt$new_window == "yes")
-  print(head(ixesWindowChanges))
-  print(class(dt))
-  models <- buildWindowVector(dt, 1, ixesWindowChanges[1])
-  
-  for(i in 2:(length(ixesWindowChanges) - 1)) {
-    models <- cbind(models, buildWindowVector(dt, ixesWindowChanges[i], ixesWindowChanges[i + 1]))
+  deltaVec <- c(1, 1 + which(diff(as.numeric(factor(dt$user_name))) != 0))
+ 
+  models <- buildWindowVector(dt, 1, deltaVec[1])
+ 
+  for(i in 2:(length(deltaVec) - 1)) {
+    models <- cbind(models, buildWindowVector(dt, deltaVec[i], deltaVec[i + 1]))
   }
   models
   
