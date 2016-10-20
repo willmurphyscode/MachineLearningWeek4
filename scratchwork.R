@@ -3,8 +3,8 @@ require(xts)
 require(caret)
 require(lubridate)
 
-#setwd("D:\\Projects\\MachineLearningWeek4")
-setwd("C:\\Users\\william.murphy\\MachineLearningWeek4")
+setwd("D:\\Projects\\MachineLearningWeek4")
+#setwd("C:\\Users\\william.murphy\\MachineLearningWeek4")
 
 source(".\\downloadData.R")
 
