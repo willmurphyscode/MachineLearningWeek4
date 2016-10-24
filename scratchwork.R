@@ -1,4 +1,4 @@
-.libPaths("D:/rlibs")
+.libPaths(c("D:/rlibs", .libPaths()))
 
 require(data.table)
 require(xts)

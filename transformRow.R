@@ -47,6 +47,12 @@ doTransform <- function() {
   result
 }
 
+
+
+trainTemp <- doTransform()
+
+completeTrain <- trainTemp[complete.cases(trainTemp),,]
+
 mod <- caret::train(classe ~ ., data = completeTrain, method="rpart")
 
 rattle::fancyRpartPlot(mod$finalModel)
