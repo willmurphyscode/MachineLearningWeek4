@@ -1,3 +1,5 @@
+.libPaths("D:/rlibs")
+
 require(data.table)
 require(xts)
 require(caret)
@@ -9,6 +11,7 @@ setwd("D:\\Projects\\MachineLearningWeek4")
 source(".\\downloadData.R")
 
 trainSet <- fread(trainFile)
+testSet <- fread(testFile)
 trainData <- trainSet[,-1,with=FALSE]
 trainData$classe = factor(trainData$classe)
 classe <- trainSet[,160,with=FALSE]
