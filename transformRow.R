@@ -47,13 +47,27 @@ doTransform <- function() {
   result
 }
 
-
-
+doTestTransform <- function() {
+  colNamesToIgnore <- makeIgnorableColumns(trainSet)
+  result <- transformData(testSet, colNamesToIgnore)
+  
+  result
+}
+testTemp <- doTestTransform()
 trainTemp <- doTransform()
 
 completeTrain <- trainTemp[complete.cases(trainTemp),,]
 
-mod <- caret::train(classe ~ ., data = completeTrain, method="rpart")
+trainDat <- caret::createDataPartition(completeTrain$classe, p = 0.25)
+crossValidateSet <- completeTrain[trainDat[[1]],,]
+modelTrainerSet <- completeTrain[-trainDat[[1]],,]
 
-rattle::fancyRpartPlot(mod$finalModel)
+mod <- caret::train(classe ~ ., data = modelTrainerSet, method="rf")
+
+predictions <- predict(mod$finalModel, crossValidateSet)
+perf <- ROCR::performance(predictions, "tpr", "fpr")
+plot(perf,col="black",lty=3, lwd=3)
+#rattle::fancyRpartPlot(mod$finalModel)
+beepr::beep()
+
 

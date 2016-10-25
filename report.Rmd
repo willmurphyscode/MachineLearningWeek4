@@ -2,7 +2,21 @@
 
 You should create a report describing how you built your model
 
+Building the model
+------------------------
+
+The data are structured so that there are many observations per window. A window is an instance of 
+one particiapant peforming one weightlifting exercise. Therefore, the first step in building the model is 
+to transform the data such that each window is one row. This was accomplished by using the mean of all numerical
+observations taken during the window, and the first of all non-numerical observations taken during the window. 
+
 , how you used cross validation
+
+The data were cross-validated by reserver 25% of the training windows for validation. Based on this validation,
+I estimate the out of sample error to be >= to  
+
+install.packages("data.table", type = "source",
+                 repos = "https://Rdatatable.github.io/data.table")
 
 , what you think the expected out of sample error is
 
