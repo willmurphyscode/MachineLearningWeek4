@@ -8,15 +8,28 @@ set.seed(8675309)
 stopifnot( require(wavelets))
 
 
-meanNumerics <- function(input) {
+meanWaveletCoefs <- function(input) {
   result <- NULL
-  if(is.numeric(input) && !any(is.na(input))) {
-    print("entered wavelets")
-    print(length(input))
+  if(is.numeric(input) && !any(is.na(input)) && length(input) > 1) {
     names(input) <- NULL
-    result <- wavelets::dwt(as.double(input), n.levels=1)
-
-    result
+    result <- tryCatch({
+      result <- wavelets::dwt(as.double(input), n.levels=1)
+      result <- mean(result@W$W1)
+      result  
+    }, error=function(cond) {
+      
+      print(input)
+      print(cond)
+      stop("would make NA")
+      return(NA)
+    }, warning=function(cond) {
+       
+      print(input)
+      print(cond)
+      stop("would make NA")
+      return(NA)
+    })
+    
   } else {
     result <- input[1]
   }
@@ -103,8 +116,11 @@ countSwitches <- function(v) {
 makeIgnorableColumns <- function(dt) {
   ignoreMe <- NULL
   sadfaces <- apply(dt, 2 , function(x) { length(unique(x)) == 1})
-  
+  sadfaces2 <- apply(dt, 2, function(x) { all(is.na(x)) })
+  sadfaces3 <- apply(dt, 2, function(x) { any(x == "")})
+  sadfaces <- unique(c(sadfaces, sadfaces2, sadfaces3))
   ignoreMe <- colnames(dt)[which(sadfaces)]
+  print(paste("Ignoring: ", ignoreMe))
   ignoreMe
 }
 
@@ -118,14 +134,14 @@ transformData <- function(dt, vecColNamesToIgnore, fnSummarizeNumeric = function
     classByWindow <- group_by(classByWindow, window) %>%
         summarise(classe = first(classe))
 
-    tmpDt <- summarise_each(tmpDt,funs(meanNumerics(.)), -classe)
+    tmpDt <- summarise_each(tmpDt,funs(meanWaveletCoefs(.)), -classe)
     print("passed summarise each")
     print(tmpDt$classe)
    
     tmpDt[, classe := classByWindow$classe]
     print(length(unique(tmpDt$classe)))
     vecColNamesToIgnore <- makeIgnorableColumns(tmpDt)
-    
+    print(vecColNamesToIgnore)
     tmpDt <- tmpDt[, which(colnames(tmpDt) %in% vecColNamesToIgnore) := NULL, with = FALSE]
     
     sadFaces <- makeIgnorableColumns(tmpDt)
