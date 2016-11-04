@@ -8,13 +8,17 @@ set.seed(8675309)
 stopifnot( require(wavelets))
 
 
-meanWaveletCoefs <- function(input) {
+meanWaveletCoefs <- function(in_put) {
+  input <- as.numeric(in_put)
   result <- NULL
   if(is.numeric(input) && !any(is.na(input)) && length(input) > 1) {
     names(input) <- NULL
     result <- tryCatch({
       result <- wavelets::dwt(as.double(input), n.levels=1)
-      result <- mean(result@W$W1)
+      result <- mean(result@filter@h ^ 2)
+      if(is.na(result)) {
+        stop("Would return NA")
+      }
       result  
     }, error=function(cond) {
       
@@ -134,18 +138,36 @@ transformData <- function(dt, vecColNamesToIgnore, fnSummarizeNumeric = function
     classByWindow <- group_by(classByWindow, window) %>%
         summarise(classe = first(classe))
 
-    tmpDt <- summarise_each(tmpDt,funs(meanWaveletCoefs(.)), -classe)
+    tmpDt <- summarise_each(tmpDt,funs(meanWaveletCoefs(.)), c(roll_belt, yaw_belt, pitch_belt,
+                                    roll_dumbbell, pitch_dumbbell, yaw_dumbbell,
+                                    gyros_arm_x, gyros_arm_y, gyros_arm_z, 
+                                    accel_arm_x, accel_arm_y, accel_arm_z,
+                                    magnet_arm_x, magnet_arm_y, magnet_arm_z,
+                                    roll_arm, pitch_arm, yaw_arm,
+                                    accel_belt_x, accel_belt_y, accel_belt_z,
+                                    gyros_belt_x, gyros_belt_y, gyros_belt_z,
+                                    magnet_belt_x, magnet_belt_y, magnet_belt_z,
+                                    accel_dumbbell_x, accel_dumbbell_y, accel_dumbbell_z,
+                                    gyros_dumbbell_x, gyros_dumbbell_y, gyros_dumbbell_z,
+                                    magnet_dumbbell_x, magnet_dumbbell_y, magnet_dumbbell_z,
+                                    gyros_forearm_x, gyros_forearm_y, gyros_forearm_z,
+                                    accel_forearm_x, accel_forearm_y, accel_forearm_z,
+                                    magnet_forearm_x, magnet_forearm_y, magnet_forearm_z
+                                    ))
     print("passed summarise each")
     print(tmpDt$classe)
-   
-    tmpDt[, classe := classByWindow$classe]
-    print(length(unique(tmpDt$classe)))
-    vecColNamesToIgnore <- makeIgnorableColumns(tmpDt)
-    print(vecColNamesToIgnore)
-    tmpDt <- tmpDt[, which(colnames(tmpDt) %in% vecColNamesToIgnore) := NULL, with = FALSE]
+    print(str(tmpDt))
     
-    sadFaces <- makeIgnorableColumns(tmpDt)
-    print(sadFaces)
+    tmpDt[, classe := classByWindow$classe]
+    
+    print("passed re-add classe")
+   # print(length(unique(tmpDt$classe)))
+  #  vecColNamesToIgnore <- makeIgnorableColumns(tmpDt)
+  #  print(vecColNamesToIgnore)
+   # tmpDt <- tmpDt[, which(colnames(tmpDt) %in% vecColNamesToIgnore) := NULL, with = FALSE]
+    
+    #sadFaces <- makeIgnorableColumns(tmpDt)
+   # print(sadFaces)
     
     tmpDt
     
@@ -170,19 +192,39 @@ trainTemp <- doTransform()
 
 completeTrain <- trainTemp[complete.cases(trainTemp),,]
 allNumbers <- apply(completeTrain, 2, function(x) { all(is.numeric(x))})
+print('passed all numbers')
 #print(allNumbers)
 
 trainDat <- caret::createDataPartition(completeTrain$classe, p = 0.25)
 crossValidateSet <- completeTrain[trainDat[[1]],,]
 modelTrainerSet <- completeTrain[-trainDat[[1]],,]
 
+
+
 windowIds <- completeTrain$num_window
 completeTrain[, num_window := NULL]
 
-mod <- caret::train(classe ~ ., data = completeTrain, method="rpart")
+near_zero <- apply(completeTrain, 2, function(x) { var(x) < 0.01 })
+
+percent_nzv <- mean(near_zero, na.rm = TRUE)
+
+if(percent_nzv > 0.1) {
+  print(percent_nzv)
+  stop('too many variables with near zero variation')
+}
+
+
+mod <- caret::train(classe ~ ., data = completeTrain, method="rpart", cp = 0.00001)
+
+print(paste("number of classes was: ", length(unique(completeTrain$classe))))
+
+print(summary(mod$finalModel))
+
 rattle::fancyRpartPlot(mod$finalModel)
 #rpart::printcp(mod$finalModel)
 #mod$finalModel <- randomForest::randomForest(classe ~ ., data = modelTrainerSet)
+
+print('passed fancyplot')
 
 predictions <- predict(mod$finalModel, newdata = modelTrainerSet, type = "class")
 perf <- ROCR::performance(predictions, "tpr", "fpr")

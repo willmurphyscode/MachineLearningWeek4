@@ -14,3 +14,21 @@ stopifnot(require(wavelets));
 
 ##TODO dwt accepts a a vector or a dataframe. Should I just yank 
 # the columns I want and dwt the whole thing? 
+
+transformVec <- function(input) {
+      result <- wavelets::dwt(as.double(input), n.levels=1)
+      result <- mean(result@W$W1)
+      result
+}
+
+transormation <- function(testOrTrain) {
+      
+      yb <- tapply(testOrTrain)
+
+      result <- data.frame(
+         
+
+      )
+
+
+}
