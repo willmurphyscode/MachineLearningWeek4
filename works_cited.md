@@ -4,3 +4,4 @@
 
 2. https://www.eecis.udel.edu/~amer/CISC651/IEEEwavelet.pdf
 
+Scargle deﬁnes a scalegram of a time series as the average of the squares of the wavelet coeﬃcients at a given scale. (page 14 of pdf)
