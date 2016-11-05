@@ -7,15 +7,22 @@ set.seed(8675309)
 #will be transformed.
 stopifnot( require(wavelets))
 
+waveses <- list()
+ix <- 1
 
-meanWaveletCoefs <- function(in_put) {
+meanWaveletCoefs <- function(in_put, wave_list) {
   input <- as.numeric(in_put)
   result <- NULL
   if(is.numeric(input) && !any(is.na(input)) && length(input) > 1) {
     names(input) <- NULL
     result <- tryCatch({
-      result <- wavelets::dwt(as.double(input), n.levels=1)
-      result <- mean(result@filter@h ^ 2)
+      result <- wavelets::dwt(as.double(input),filter =  "bl14", n.levels=1)
+      key <- ix
+      ix <<- ix + 1
+      value <- result@filter@h
+      wave_list[[key]] <- value
+      
+      result <- mean(result@V$V1 ^ 2)
       if(is.na(result)) {
         stop("Would return NA")
       }
@@ -24,7 +31,7 @@ meanWaveletCoefs <- function(in_put) {
       
       print(input)
       print(cond)
-      stop("would make NA")
+      stop("catch: would make NA")
       return(NA)
     }, warning=function(cond) {
        
@@ -43,6 +50,44 @@ meanWaveletCoefs <- function(in_put) {
   
   result
   
+}
+
+
+
+meanOddCoeffs <- function(in_put, n) {
+  input <- as.numeric(in_put)
+  result <- NULL
+  if(is.numeric(input) && !any(is.na(input)) && length(input) > 1) {
+    names(input) <- NULL
+    result <- tryCatch({
+      result <- wavelets::dwt(as.double(input), n.levels=1)
+      result <- mean(result@filter@h[1:(length(result@filter@h)/2)*2]^2)
+      if(is.na(result)) {
+        stop("Would return NA")
+      }
+      result  
+    }, error=function(cond) {
+      
+      print(input)
+      print(cond)
+      stop("would make NA")
+      return(NA)
+    }, warning=function(cond) {
+      
+      print(input)
+      print(cond)
+      stop("would make NA")
+      return(NA)
+    })
+    
+  } else {
+    result <- input[1]
+  }
+  if(is.integer(result)) {
+    result <- as.double(result)
+  }
+  
+  result
 }
 
 
@@ -133,12 +178,14 @@ transformData <- function(dt, vecColNamesToIgnore, fnSummarizeNumeric = function
     tmpDt <- dt#[, which(colnames(dt) %in% vecColNamesToIgnore) := NULL, with = FALSE]
     #print(str(dt))
     classByWindow <- data.frame(window = tmpDt$num_window, classe = tmpDt$classe)
-    tmpDt <- group_by(tmpDt, num_window)
+    #tmpDt <- group_by(tmpDt, num_window)
 
     classByWindow <- group_by(classByWindow, window) %>%
         summarise(classe = first(classe))
-
-    tmpDt <- summarise_each(tmpDt,funs(meanWaveletCoefs(.)), c(roll_belt, yaw_belt, pitch_belt,
+    print(tmpDt$num_window[1:30])
+    tmpDt <- tmpDt %>% 
+            group_by_(tmpDt$num_window) %>%
+            summarise_each_(funs(meanWaveletCoefs(., waveses)), c(roll_belt, yaw_belt, pitch_belt,
                                     roll_dumbbell, pitch_dumbbell, yaw_dumbbell,
                                     gyros_arm_x, gyros_arm_y, gyros_arm_z, 
                                     accel_arm_x, accel_arm_y, accel_arm_z,
