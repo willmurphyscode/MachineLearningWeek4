@@ -46,7 +46,8 @@ tmpSet <- trainSet[ ,which( colnames(trainSet) %in% c("roll_belt", "yaw_belt", "
                                     "magnet_dumbbell_x", "magnet_dumbbell_y", "magnet_dumbbell_z",
                                     "gyros_forearm_x", "gyros_forearm_y", "gyros_forearm_z",
                                     "accel_forearm_x", "accel_forearm_y", "accel_forearm_z",
-                                    "magnet_forearm_x", "magnet_forearm_y", "magnet_forearm_z"
+                                    "magnet_forearm_x", "magnet_forearm_y", "magnet_forearm_z", "num_window", "classe"
+
 )), with=FALSE]
 
 # c(roll_belt, yaw_belt, pitch_belt,
@@ -66,26 +67,67 @@ tmpSet <- trainSet[ ,which( colnames(trainSet) %in% c("roll_belt", "yaw_belt", "
 #                                     magnet_forearm_x, magnet_forearm_y, magnet_forearm_z
 #                                     )
 
-foo <- apply( tmpSet, 2, function(outer) {  
-            tapply(outer, factor(trainSet$num_window), function(x) { 
-                  if(length(unique(x)) > 1) {
-                         wavelets::dwt(as.double(x), filter="la8", n.levels = 1) 
-                  }
-                  else { 
-                      x[1]
-            }})
-      })
+makeWaveletVmean <- function(x) { 
+      if(length(unique(x)) > 1) {
+           inner <- wavelets::dwt(as.double(x), filter="la8", n.levels = 1) 
+           vmean = mean(inner@V$V1)
+           as.double(vmean)
+      }
+      else {
+        if(is.numeric(x[1])) {
+           as.double( x[1])
+        } else {
+              x[1]
+        }    
+      }
+}
+
+makeWaveletWmean <- function(x) { 
+      if(length(unique(x)) > 1) {
+            inner <- wavelets::dwt(as.double(x), filter="la8", n.levels = 1) 
+            wmean = mean(inner@W$W1)
+            as.double(wmean)
+      }
+      else {
+        if(is.numeric(x[1])) {
+           as.double( x[1])
+        } else {
+              x[1]
+        }    
+      }
+}
 
 
-foo2 <- lapply(foo, function(x) {
-      result <- lapply(x, function(inner) {
-            if(!"dwt" %in% class(inner)) {
-                  return(NA)
-            }
-            result <- list(
-                  vmean = mean(inner@V$V1),
-                  wmean = mean(inner@W$W1)
-                  )
-            result
-      })
-})
+resultDt <- tmpSet[, lapply(.SD, makeWaveletVmean), by = num_window ]
+resultDt2 <- tmpSet[, lapply(.SD, makeWaveletWmean), by = num_window ]
+resultDt2 <- resultDt2[, c("num_window", "classe") := NULL,]
+colnames(resultDt2) <- paste("w_", colnames(resultDt2), sep="")
+resultDt <- cbind(resultDt, resultDt2)
+# foo <- apply( tmpSet, 2, function(outer) {  
+#             tapply(outer, factor(trainSet$num_window), function(x) { 
+#                   if(length(unique(x)) > 1) {
+#                          wavelets::dwt(as.double(x), filter="la8", n.levels = 1) 
+#                   }
+#                   else { 
+#                       x[1]
+#             }})
+#       })
+
+
+# foo2 <- lapply(foo, function(x) {
+#       result <- lapply(x, function(inner) {
+#             if(!"dwt" %in% class(inner)) {
+#                   return(NA)
+#             }
+#             result <- list(
+#                   vmean = mean(inner@V$V1),
+#                   wmean = mean(inner@W$W1)
+#                   )
+#             result
+#       })
+# })
+
+print(str(resultDt))
+
+mod <- caret::train(classe ~ ., data = resultDt, method="rpart", cp = 0.00001)
+rattle::fancyRpartPlot(mod$finalModel)
