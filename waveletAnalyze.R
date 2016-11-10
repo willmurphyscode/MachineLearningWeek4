@@ -123,7 +123,8 @@ resultDt2 <- resultDt2[, c("num_window", "classe") := NULL,]
 colnames(resultDt2) <- paste("w_", colnames(resultDt2), sep="")
 resultDt <- cbind(resultDt, resultDt2)
 
-#TODO cross validate
+
+
 
 validatorPartition <- caret::createDataPartition(resultDt$classe, 2, 0.75, list=FALSE)
 
@@ -140,7 +141,41 @@ correctPredictions <- predictions == validateSet$classe
 
 percentCorrect <- (sum(correctPredictions) / length(correctPredictions)) * 100
 
-print(percentCorrect)
+print(percentCorrect) # this is out of sample prediction error. 
 
+#DO QUIZ: 
+testTmpDt <- testSet[ ,which( colnames(trainSet) %in% c("roll_belt", "yaw_belt", "pitch_belt",
+                                    "roll_dumbbell", "pitch_dumbbell", "yaw_dumbbell",
+                                    "gyros_arm_x", "gyros_arm_y", "gyros_arm_z", 
+                                    "accel_arm_x", "accel_arm_y", "accel_arm_z",
+                                    "magnet_arm_x", "magnet_arm_y", "magnet_arm_z",
+                                    "roll_arm", "pitch_arm", "yaw_arm",
+                                    "accel_belt_x", "accel_belt_y", "accel_belt_z",
+                                    "gyros_belt_x", "gyros_belt_y", "gyros_belt_z",
+                                    "magnet_belt_x", "magnet_belt_y", "magnet_belt_z",
+                                    "accel_dumbbell_x", "accel_dumbbell_y", "accel_dumbbell_z",
+                                    "gyros_dumbbell_x", "gyros_dumbbell_y", "gyros_dumbbell_z",
+                                    "magnet_dumbbell_x", "magnet_dumbbell_y", "magnet_dumbbell_z",
+                                    "gyros_forearm_x", "gyros_forearm_y", "gyros_forearm_z",
+                                    "accel_forearm_x", "accel_forearm_y", "accel_forearm_z",
+                                    "magnet_forearm_x", "magnet_forearm_y", "magnet_forearm_z", "num_window"
+
+)), with=FALSE]
+
+testDt <- testTmpDt[, lapply(.SD, makeWaveletVmean), by = num_window ]
+testDt2 <- testTmpDt[, lapply(.SD, makeWaveletWmean), by = num_window ]
+testDt2 <- testDt2[, c("num_window") := NULL,]
+colnames(testDt2) <- paste("w_", colnames(testDt2), sep="")
+testDt <- cbind(testDt, testDt2)
+
+
+testPredictions <- predict(mod$finalModel, newdata = testDt, type = "class")
+
+for(i in 1:length(testPredictions)) {
+      print(
+            paste(i, ": ", testPredictions[i], sep="")
+      )
+
+}
 
 beepr::beep()
