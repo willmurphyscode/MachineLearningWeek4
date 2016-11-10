@@ -1,3 +1,20 @@
+set.seed(12345)
+
+.libPaths(c("D:/rlibs", .libPaths()))
+
+require(data.table)
+require(xts)
+require(caret)
+require(lubridate)
+
+setwd("D:\\Projects\\MachineLearningWeek4")
+#setwd("C:\\Users\\william.murphy\\MachineLearningWeek4")
+
+source(".\\downloadData.R")
+
+trainSet <- fread(trainFile)
+testSet <- fread(testFile)
+
 
 stopifnot(require(wavelets));
 
@@ -49,6 +66,8 @@ tmpSet <- trainSet[ ,which( colnames(trainSet) %in% c("roll_belt", "yaw_belt", "
                                     "magnet_forearm_x", "magnet_forearm_y", "magnet_forearm_z", "num_window", "classe"
 
 )), with=FALSE]
+
+
 
 # c(roll_belt, yaw_belt, pitch_belt,
 #                                     roll_dumbbell, pitch_dumbbell, yaw_dumbbell,
@@ -103,31 +122,25 @@ resultDt2 <- tmpSet[, lapply(.SD, makeWaveletWmean), by = num_window ]
 resultDt2 <- resultDt2[, c("num_window", "classe") := NULL,]
 colnames(resultDt2) <- paste("w_", colnames(resultDt2), sep="")
 resultDt <- cbind(resultDt, resultDt2)
-# foo <- apply( tmpSet, 2, function(outer) {  
-#             tapply(outer, factor(trainSet$num_window), function(x) { 
-#                   if(length(unique(x)) > 1) {
-#                          wavelets::dwt(as.double(x), filter="la8", n.levels = 1) 
-#                   }
-#                   else { 
-#                       x[1]
-#             }})
-#       })
+
+#TODO cross validate
+
+validatorPartition <- caret::createDataPartition(resultDt$classe, 2, 0.75, list=FALSE)
+
+initialTrainSet <- resultDt[validatorPartition[,1]]#, colnames(resultDt) , with=FALSE]
+validateSet <- resultDt[-validatorPartition[,1]]#, colnames(resultDt) , with=FALSE]
+
+mod <- caret::train(classe ~ ., data = initialTrainSet, method="rf", cp = 0.00001)
+#rattle::fancyRpartPlot(mod$finalModel)
 
 
-# foo2 <- lapply(foo, function(x) {
-#       result <- lapply(x, function(inner) {
-#             if(!"dwt" %in% class(inner)) {
-#                   return(NA)
-#             }
-#             result <- list(
-#                   vmean = mean(inner@V$V1),
-#                   wmean = mean(inner@W$W1)
-#                   )
-#             result
-#       })
-# })
+predictions <- predict(mod$finalModel, newdata = validateSet, type = "class")
 
-print(str(resultDt))
+correctPredictions <- predictions == validateSet$classe
 
-mod <- caret::train(classe ~ ., data = resultDt, method="rpart", cp = 0.00001)
-rattle::fancyRpartPlot(mod$finalModel)
+percentCorrect <- (sum(correctPredictions) / length(correctPredictions)) * 100
+
+print(percentCorrect)
+
+
+beepr::beep()
