@@ -86,7 +86,7 @@ tmpSet <- trainSet[ ,which( colnames(trainSet) %in% c("roll_belt", "yaw_belt", "
 #                                     magnet_forearm_x, magnet_forearm_y, magnet_forearm_z
 #                                     )
 
-makeWaveletVmean <- function(x) { 
+makeWaveletVmean <- function(x, warnSingles = FALSE) { 
       if(length(unique(x)) > 1) {
            inner <- wavelets::dwt(as.double(x), filter="la8", n.levels = 1) 
            vmean = mean(inner@V$V1)
@@ -94,8 +94,14 @@ makeWaveletVmean <- function(x) {
       }
       else {
         if(is.numeric(x[1])) {
+              if(warnSingles) {
+                    print("returning length 1 vector")
+              }
            as.double( x[1])
         } else {
+              if(warnSingles) {
+                    print("returning length 1 vector")
+              }
               x[1]
         }    
       }
@@ -116,12 +122,55 @@ makeWaveletWmean <- function(x) {
       }
 }
 
+safeMean <- function(x) {
+      if(is.numeric(x)) {
+           result <- mean(x, na.rm = TRUE) #if this happens to work out to a whole number, data.table 
+           as.double(result)               #will try to store an int in a C double[] and crash. 
+      } else {
+            if(is.numeric(x[1])) {
+            as.double( x[1])
+            } else {
+                  x[1]
+            } 
+      }
+
+}
+
+safeMin <- function(x) {
+      if(is.numeric(x)) {
+            result <- min(x, na.rm = TRUE)
+            as.double(result)
+      } else {
+            x[1]
+      }
+
+}
+
+safeMax <- function(x) {
+      if(is.numeric(x)) {
+            result <- max(x, na.rm=TRUE)
+            as.double(result)
+      } else {
+            x[1]
+      }
+
+}
+
 
 resultDt <- tmpSet[, lapply(.SD, makeWaveletVmean), by = num_window ]
 resultDt2 <- tmpSet[, lapply(.SD, makeWaveletWmean), by = num_window ]
 resultDt2 <- resultDt2[, c("num_window", "classe") := NULL,]
 colnames(resultDt2) <- paste("w_", colnames(resultDt2), sep="")
-resultDt <- cbind(resultDt, resultDt2)
+resultDt3 <- tmpSet[, lapply(.SD, safeMean), by = num_window ]
+resultDt3 <- resultDt3[, c("num_window", "classe") := NULL, ]
+colnames(resultDt3) <- paste("mean_", colnames(resultDt3), sep="")
+resultDt4 <- tmpSet[, lapply(.SD, safeMin), by = num_window ]
+resultDt4 <- resultDt4[, c("num_window", "classe") := NULL, ]
+colnames(resultDt4) <- paste("min_", colnames(resultDt4), sep="")
+resultDt5 <- tmpSet[, lapply(.SD, safeMax), by = num_window ]
+resultDt5 <- resultDt5[, c("num_window", "classe") := NULL, ]
+colnames(resultDt5) <- paste("max_", colnames(resultDt5), sep="")
+resultDt <- cbind(resultDt, resultDt2, resultDt3, resultDt4, resultDt5)
 
 
 
@@ -162,11 +211,24 @@ testTmpDt <- testSet[ ,which( colnames(trainSet) %in% c("roll_belt", "yaw_belt",
 
 )), with=FALSE]
 
-testDt <- testTmpDt[, lapply(.SD, makeWaveletVmean), by = num_window ]
+testDt <- testTmpDt[, lapply(.SD, function(x){ makeWaveletVmean(x, TRUE) } ), by = num_window ]
 testDt2 <- testTmpDt[, lapply(.SD, makeWaveletWmean), by = num_window ]
 testDt2 <- testDt2[, c("num_window") := NULL,]
 colnames(testDt2) <- paste("w_", colnames(testDt2), sep="")
-testDt <- cbind(testDt, testDt2)
+testDt3 <- testTmpDt[, lapply(.SD, safeMean), by = num_window ]
+testDt3 <- testDt3[, c("num_window") := NULL,]
+colnames(testDt3) <- paste("mean_", colnames(testDt3), sep="")
+testDt4 <- testTmpDt[, lapply(.SD, safeMin), by = num_window ]
+testDt4 <- testDt4[, c("num_window") := NULL,]
+colnames(testDt4) <- paste("min_", colnames(testDt4), sep="")
+testDt <- cbind(testDt, testDt2, testDt3, testDt4)
+testDt5 <- testTmpDt[, lapply(.SD, safeMax), by = num_window ]
+testDt5 <- testDt5[, c("num_window") := NULL,]
+colnames(testDt5) <- paste("max_", colnames(testDt5), sep="")
+testDt <- cbind(testDt, testDt2, testDt3, testDt4, testDt5)
+
+print(setdiff(colnames(testDt), colnames(resultDt)))
+print(setdiff(colnames(resultDt), colnames(testDt)))
 
 
 testPredictions <- predict(mod$finalModel, newdata = testDt, type = "class")
@@ -177,5 +239,5 @@ for(i in 1:length(testPredictions)) {
       )
 
 }
-
+print(paste("Percent correct was: ", percentCorrect, sep = ""))
 beepr::beep()
